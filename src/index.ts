@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { config } from './config/env';
 import sql from './config/database';
+import userRoutes from './routes/users';
 
 const app: Express = express();
 const port = config.server.port;
@@ -47,6 +48,9 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
+// Routes
+app.use('/users', userRoutes);
+
 // 404 handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -70,5 +74,6 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.listen(port, host, () => {
   console.log(`\n🚀 Server running at http://${host}:${port}`);
   console.log(`📊 Health check: http://${host}:${port}/health`);
+  console.log(`👥 User routes: http://${host}:${port}/users`);
   console.log(`🌍 Environment: ${config.server.nodeEnv}\n`);
 });
