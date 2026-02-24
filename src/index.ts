@@ -1,26 +1,74 @@
-import "dotenv/config";
-import http from "http";
-import { neon } from "@neondatabase/serverless";
+import 'dotenv/config';
+import express, { Express, Request, Response, NextFunction } from 'express';
+import { config } from './config/env';
+import sql from './config/database';
 
-const sql = neon(process.env.DATABASE_URL || "");
+const app: Express = express();
+const port = config.server.port;
+const host = config.server.host;
 
-const requestHandler = async (
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-) => {
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
+// Health check endpoint
+app.get('/health', async (req: Request, res: Response) => {
   try {
+    // Test database connection
     const result = await sql`SELECT version()`;
-    const { version } = result[0] || { version: "unknown" };
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end(version);
-  } catch (err) {
-    res.writeHead(500, { "Content-Type": "text/plain" });
-    res.end(String(err));
+    const dbVersion = (result && result[0] && (result[0] as any).version) || 'unknown';
+
+    res.status(200).json({
+      status: 'ok',
+      message: 'Server is running',
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: true,
+        version: dbVersion,
+      },
+      environment: config.server.nodeEnv,
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Database connection failed',
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: false,
+      },
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
-};
+});
 
-const port = Number(process.env.PORT || 3000);
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'Route not found',
+    path: req.path,
+  });
+});
 
-http.createServer(requestHandler).listen(port, () => {
-  console.log(`Neon server running at http://localhost:${port}`);
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: err.message || 'Internal server error',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Start server
+app.listen(port, host, () => {
+  console.log(`\n🚀 Server running at http://${host}:${port}`);
+  console.log(`📊 Health check: http://${host}:${port}/health`);
+  console.log(`🌍 Environment: ${config.server.nodeEnv}\n`);
 });
