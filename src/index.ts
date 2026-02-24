@@ -3,6 +3,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import { config } from './config/env';
 import sql from './config/database';
 import userRoutes from './routes/users';
+import productRoutes from './routes/products';
 
 const app: Express = express();
 const port = config.server.port;
@@ -50,6 +51,7 @@ app.get('/health', async (req: Request, res: Response) => {
 
 // Routes
 app.use('/users', userRoutes);
+app.use('/products', productRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
